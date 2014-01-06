@@ -46,7 +46,8 @@ public:
 int main()
 {
 	// Lua 를 초기화 한다.
-	lua_State* L = lua_open();
+	//lua_State* L = lua_open();
+	lua_State* L = luaL_newstate();
 
 	// Lua 기본 함수들을 로드한다.- print() 사용
 	luaopen_base(L);
@@ -72,9 +73,8 @@ int main()
 
 	// Thread 를 시작한다.
 	lua_newthread(L);
-	lua_pushstring(L, "ThreadTest");
-	lua_gettable(L, LUA_GLOBALSINDEX);
-
+	lua_getglobal(L, "ThreadTest");
+/*
 	// Thread 를 시작한다.
 	printf("* lua_resume() 호출\n");
 	lua_resume(L, 0);
@@ -94,7 +94,7 @@ int main()
 	// Thread 를 다시 시작한다.
 	printf("* lua_resume() 호출\n");
 	lua_resume(L, 0);
-
+*/
 	// 프로그램 종료
 	lua_close(L);
 

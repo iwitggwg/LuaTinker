@@ -447,7 +447,7 @@ namespace lua_tinker
 	{
 		V T::*_var;
 		mem_var(V T::*val) : _var(val) {}
-		void get(lua_State *L)	{ push<if_<is_obj<V>::value,V&,V>::type>(L, read<T*>(L,1)->*(_var));	}
+		void get(lua_State *L)	{ push<typename if_<is_obj<V>::value,V&,V>::type>(L, read<T*>(L,1)->*(_var));	}
 		void set(lua_State *L)	{ read<T*>(L,1)->*(_var) = read<V>(L, 3);	}
 	};
 
@@ -680,6 +680,7 @@ namespace lua_tinker
 		return 0;
 	}
 
+#if 0
 	// global function
 	template<typename F> 
 	void def(lua_State* L, const char* name, F func)
@@ -689,7 +690,18 @@ namespace lua_tinker
 		push_functor(L, func);
 		lua_settable(L, LUA_GLOBALSINDEX);
 	}
+#endif
 
+	// global function
+	template<typename F> 
+	void def(lua_State* L, const char* name, F func)
+	{ 
+		lua_pushlightuserdata(L, (void*)func);
+		push_functor(L, func);
+		lua_setglobal(L, name);
+	}
+
+#if 0
 	// global variable
 	template<typename T>
 	void set(lua_State* L, const char* name, T object)
@@ -698,12 +710,30 @@ namespace lua_tinker
 		push(L, object);
 		lua_settable(L, LUA_GLOBALSINDEX);
 	}
+#endif
 
+	// global variable
+	template<typename T>
+	void set(lua_State* L, const char* name, T object)
+	{
+		push(L, object);
+		lua_setglobal(L, name);
+	}
+
+#if 0
 	template<typename T>
 	T get(lua_State* L, const char* name)
 	{
 		lua_pushstring(L, name);
 		lua_gettable(L, LUA_GLOBALSINDEX);
+		return pop<T>(L);
+	}
+#endif
+
+	template<typename T>
+	T get(lua_State* L, const char* name)
+	{
+		lua_getglobal(L, name);
 		return pop<T>(L);
 	}
 
@@ -713,6 +743,7 @@ namespace lua_tinker
 		set(L, name, object);
 	}
 
+#if 0
 	// call
 	template<typename RVal>
 	RVal call(lua_State* L, const char* name)
@@ -735,7 +766,31 @@ namespace lua_tinker
 		lua_remove(L, errfunc);
 		return pop<RVal>(L);
 	}
+#endif
 
+	// call
+	template<typename RVal>
+	RVal call(lua_State* L, const char* name)
+	{
+		lua_pushcclosure(L, on_error, 0);
+		int errfunc = lua_gettop(L);
+
+		lua_getglobal(L, name);
+
+		if(lua_isfunction(L,-1))
+		{
+			lua_pcall(L, 0, 1, errfunc);
+		}
+		else
+		{
+			print_error(L, "lua_tinker::call() attempt to call global `%s' (not a function)", name);
+		}
+
+		lua_remove(L, errfunc);
+		return pop<RVal>(L);
+	}
+
+#if 0
 	template<typename RVal, typename T1>
 	RVal call(lua_State* L, const char* name, T1 arg)
 	{
@@ -757,7 +812,30 @@ namespace lua_tinker
 		lua_remove(L, errfunc);
 		return pop<RVal>(L);
 	}
+#endif
 
+	template<typename RVal, typename T1>
+	RVal call(lua_State* L, const char* name, T1 arg)
+	{
+		lua_pushcclosure(L, on_error, 0);
+		int errfunc = lua_gettop(L);
+
+		lua_getglobal(L, name);
+		if(lua_isfunction(L,-1))
+		{
+			push(L, arg);
+			lua_pcall(L, 1, 1, errfunc);
+		}
+		else
+		{
+			print_error(L, "lua_tinker::call() attempt to call global `%s' (not a function)", name);
+		}
+
+		lua_remove(L, errfunc);
+		return pop<RVal>(L);
+	}
+
+#if 0
 	template<typename RVal, typename T1, typename T2>
 	RVal call(lua_State* L, const char* name, T1 arg1, T2 arg2)
 	{
@@ -780,7 +858,31 @@ namespace lua_tinker
 		lua_remove(L, errfunc);
 		return pop<RVal>(L);
 	}
+#endif
 
+	template<typename RVal, typename T1, typename T2>
+	RVal call(lua_State* L, const char* name, T1 arg1, T2 arg2)
+	{
+		lua_pushcclosure(L, on_error, 0);
+		int errfunc = lua_gettop(L);
+
+		lua_getglobal(L, name);
+		if(lua_isfunction(L,-1))
+		{
+			push(L, arg1);
+			push(L, arg2);
+			lua_pcall(L, 2, 1, errfunc);
+		}
+		else
+		{
+			print_error(L, "lua_tinker::call() attempt to call global `%s' (not a function)", name);
+		}
+
+		lua_remove(L, errfunc);
+		return pop<RVal>(L);
+	}
+
+#if 0
 	template<typename RVal, typename T1, typename T2, typename T3>
 	RVal call(lua_State* L, const char* name, T1 arg1, T2 arg2, T3 arg3)
 	{
@@ -804,12 +906,37 @@ namespace lua_tinker
 		lua_remove(L, errfunc);
 		return pop<RVal>(L);
 	}
+#endif
+
+	template<typename RVal, typename T1, typename T2, typename T3>
+	RVal call(lua_State* L, const char* name, T1 arg1, T2 arg2, T3 arg3)
+	{
+		lua_pushcclosure(L, on_error, 0);
+		int errfunc = lua_gettop(L);
+
+		lua_getglobal(L, name);
+		if(lua_isfunction(L,-1))
+		{
+			push(L, arg1);
+			push(L, arg2);
+			push(L, arg3);
+			lua_pcall(L, 3, 1, errfunc);
+		}
+		else
+		{
+			print_error(L, "lua_tinker::call() attempt to call global `%s' (not a function)", name);
+		}
+
+		lua_remove(L, errfunc);
+		return pop<RVal>(L);
+	}
 
 	// class helper
 	int meta_get(lua_State *L);
 	int meta_set(lua_State *L);
 	void push_meta(lua_State *L, const char* name);
 
+#if 0
 	// class init
 	template<typename T>
 	void class_add(lua_State* L, const char* name) 
@@ -836,6 +963,34 @@ namespace lua_tinker
 		lua_rawset(L, -3);
 
 		lua_settable(L, LUA_GLOBALSINDEX);
+	}
+#endif
+
+	// class init
+	template<typename T>
+	void class_add(lua_State* L, const char* name) 
+	{ 
+		class_name<T>::name(name);
+
+		lua_newtable(L);
+
+		lua_pushstring(L, "__name");
+		lua_pushstring(L, name);
+		lua_rawset(L, -3);
+
+		lua_pushstring(L, "__index");
+		lua_pushcclosure(L, meta_get, 0);
+		lua_rawset(L, -3);
+
+		lua_pushstring(L, "__newindex");
+		lua_pushcclosure(L, meta_set, 0);
+		lua_rawset(L, -3);
+
+		lua_pushstring(L, "__gc");
+		lua_pushcclosure(L, destroyer<T>, 0);
+		lua_rawset(L, -3);
+
+		lua_setglobal(L, name);
 	}
 
 	// Tinker Class Inheritence
@@ -897,6 +1052,7 @@ namespace lua_tinker
 		lua_pop(L, 1);
 	}
 
+#if 0
 	template<typename T>
 	struct class_name
 	{
@@ -905,6 +1061,19 @@ namespace lua_tinker
 		{
 			static char temp[256] = "";
 			if(name) strcpy_s(temp, name);
+			return temp;
+		}
+	};
+#endif
+
+	template<typename T>
+	struct class_name
+	{
+		// global name
+		static const char* name(const char* name = NULL)
+		{
+			static char temp[256] = "";
+			if(name) strncpy(temp, name, sizeof(temp) - 1);
 			return temp;
 		}
 	};
