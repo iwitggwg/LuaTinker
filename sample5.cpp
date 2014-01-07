@@ -22,8 +22,8 @@ int main()
 	lua_State* L = luaL_newstate();
 
 	// Lua 기본 함수들을 로드한다.- print() 사용
-	luaopen_base(L);
-
+	//luaopen_base(L);
+    luaL_requiref(L, "_G", luaopen_base, 1);
 
 	// lua_State* 가 갖고있는 현재의 스택을 보여준다.
 	printf("%s\n","-------------------------- current stack");

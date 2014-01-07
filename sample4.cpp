@@ -19,7 +19,8 @@ int main()
 	lua_State* L = luaL_newstate();
 
 	// Lua 기본 함수들을 로드한다.- print() 사용
-	luaopen_base(L);
+	//luaopen_base(L);
+	luaL_requiref(L, "_G", luaopen_base, 1);
 
 	// Lua 테이블을 생성하고 스택에 푸쉬한다.
 	lua_tinker::table haha(L, "haha");
