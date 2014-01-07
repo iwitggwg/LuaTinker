@@ -49,9 +49,12 @@ int main()
 	lua_State* L = luaL_newstate();
 
 	// Lua 기본 함수들을 로드한다.- print() 사용
-	luaopen_base(L);
+	//luaopen_base(L);
+    luaL_requiref(L, "_G", luaopen_base, 1);
+    
 	// Lua 문자열 함수들을 로드한다.- string 사용
-	luaopen_string(L);
+	//luaopen_string(L);
+    luaL_requiref(L, "string", luaopen_string, 1);
 
 	// base 클래스를 Lua 에 추가한다.
 	lua_tinker::class_add<base>(L, "base");
