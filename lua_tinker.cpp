@@ -453,16 +453,38 @@ unsigned short lua_tinker::read(lua_State *L, int index)
 	return (unsigned short)lua_tonumber(L, index);	
 }
 
+#if 0
 template<>
 long lua_tinker::read(lua_State *L, int index)
 {
 	return (long)lua_tonumber(L, index);				
 }
+#endif
 
+template<>
+long lua_tinker::read(lua_State *L, int index)
+{
+	if(lua_isnumber(L,index))
+		return (long)lua_tonumber(L, index);
+	else
+		return *(long*)lua_touserdata(L, index);
+}
+
+#if 0
 template<>
 unsigned long lua_tinker::read(lua_State *L, int index)
 {
 	return (unsigned long)lua_tonumber(L, index);		
+}
+#endif
+
+template<>
+unsigned long lua_tinker::read(lua_State *L, int index)
+{
+	if(lua_isnumber(L,index))
+		return (unsigned long)lua_tonumber(L, index);
+	else
+		return *(unsigned long*)lua_touserdata(L, index);
 }
 
 template<>
@@ -554,16 +576,46 @@ void lua_tinker::push(lua_State *L, unsigned short ret)
 	lua_pushnumber(L, ret);						
 }
 
+#if 0
 template<>
 void lua_tinker::push(lua_State *L, long ret)
 {
 	lua_pushnumber(L, ret);						
 }
+#endif
 
+template<>
+void lua_tinker::push(lua_State *L, long ret)
+{
+    if (4 == sizeof(ret)) // 32-bit platform
+    {
+	    lua_pushnumber(L, ret);						
+    }
+    else // 64-bit platform
+    {
+        return push(L, (long long)ret);
+    }
+}
+
+#if 0
 template<>
 void lua_tinker::push(lua_State *L, unsigned long ret)
 {
 	lua_pushnumber(L, ret);						
+}
+#endif
+
+template<>
+void lua_tinker::push(lua_State *L, unsigned long ret)
+{
+    if (4 == sizeof(ret)) // 32-bit platform
+    {
+	    lua_pushnumber(L, ret);						
+    }
+    else // 64-bit platform
+    {
+        return push(L, (unsigned long long)ret);
+    }
 }
 
 template<>
