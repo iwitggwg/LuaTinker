@@ -11,6 +11,10 @@
 
 #include <new>
 #include <string.h>
+#include <string>
+#include <map>
+#include <typeinfo>
+using namespace std;
 
 namespace lua_tinker
 {
@@ -36,8 +40,11 @@ namespace lua_tinker
 		virtual void to_lua(lua_State *L) = 0;
 	};
 
+    template<typename T>
+    void push_meta(lua_State *L);
+
 	// type trait
-	template<typename T> struct class_name;
+	//template<typename T> struct class_name;
 	struct table;
 
 	template<bool C, typename A, typename B> struct if_ {};
@@ -239,7 +246,8 @@ namespace lua_tinker
 				>::type
 			>::type::invoke(L, val);
 
-			push_meta(L, class_name<typename class_type<T>::type>::name());
+			//push_meta(L, class_name<typename class_type<T>::type>::name());
+			push_meta<typename class_type<T>::type>(L);
 			lua_setmetatable(L, -2);
 		} 
 	};
@@ -616,7 +624,8 @@ namespace lua_tinker
 	int constructor(lua_State *L) 
 	{ 
 		new(lua_newuserdata(L, sizeof(val2user<T>))) val2user<T>(read<T1>(L,2),read<T2>(L,3),read<T3>(L,4),read<T4>(L,5),read<T5>(L,6));
-		push_meta(L, class_name<typename class_type<T>::type>::name());
+		//push_meta(L, class_name<typename class_type<T>::type>::name());
+        push_meta<typename class_type<T>::type>(L);
 		lua_setmetatable(L, -2);
 
 		return 1; 
@@ -626,7 +635,8 @@ namespace lua_tinker
 	int constructor(lua_State *L) 
 	{ 
 		new(lua_newuserdata(L, sizeof(val2user<T>))) val2user<T>(read<T1>(L,2),read<T2>(L,3),read<T3>(L,4),read<T4>(L,5));
-		push_meta(L, class_name<typename class_type<T>::type>::name());
+		//push_meta(L, class_name<typename class_type<T>::type>::name());
+        push_meta<typename class_type<T>::type>(L);
 		lua_setmetatable(L, -2);
 
 		return 1; 
@@ -636,7 +646,8 @@ namespace lua_tinker
 	int constructor(lua_State *L) 
 	{ 
 		new(lua_newuserdata(L, sizeof(val2user<T>))) val2user<T>(read<T1>(L,2),read<T2>(L,3),read<T3>(L,4));
-		push_meta(L, class_name<typename class_type<T>::type>::name());
+		//push_meta(L, class_name<typename class_type<T>::type>::name());
+        push_meta<typename class_type<T>::type>(L);
 		lua_setmetatable(L, -2);
 
 		return 1; 
@@ -646,7 +657,8 @@ namespace lua_tinker
 	int constructor(lua_State *L) 
 	{ 
 		new(lua_newuserdata(L, sizeof(val2user<T>))) val2user<T>(read<T1>(L,2),read<T2>(L,3));
-		push_meta(L, class_name<typename class_type<T>::type>::name());
+		//push_meta(L, class_name<typename class_type<T>::type>::name());
+        push_meta<typename class_type<T>::type>(L);
 		lua_setmetatable(L, -2);
 
 		return 1; 
@@ -656,7 +668,8 @@ namespace lua_tinker
 	int constructor(lua_State *L) 
 	{ 
 		new(lua_newuserdata(L, sizeof(val2user<T>))) val2user<T>(read<T1>(L,2));
-		push_meta(L, class_name<typename class_type<T>::type>::name());
+		//push_meta(L, class_name<typename class_type<T>::type>::name());
+        push_meta<typename class_type<T>::type>(L);
 		lua_setmetatable(L, -2);
 
 		return 1; 
@@ -666,7 +679,8 @@ namespace lua_tinker
 	int constructor(lua_State *L) 
 	{ 
 		new(lua_newuserdata(L, sizeof(val2user<T>))) val2user<T>();
-		push_meta(L, class_name<typename class_type<T>::type>::name());
+		//push_meta(L, class_name<typename class_type<T>::type>::name());
+        push_meta<typename class_type<T>::type>(L);
 		lua_setmetatable(L, -2);
 
 		return 1; 
@@ -692,13 +706,14 @@ namespace lua_tinker
 	}
 #endif
 
-	// global function
+	// function
 	template<typename F> 
 	void def(lua_State* L, const char* name, F func)
 	{ 
 		lua_pushlightuserdata(L, (void*)func);
 		push_functor(L, func);
-		lua_setglobal(L, name);
+
+		lua_setfield(L, -2, name);
 	}
 
 #if 0
@@ -712,12 +727,12 @@ namespace lua_tinker
 	}
 #endif
 
-	// global variable
+	// variable
 	template<typename T>
 	void set(lua_State* L, const char* name, T object)
 	{
 		push(L, object);
-		lua_setglobal(L, name);
+		lua_setfield(L, -2, name);
 	}
 
 #if 0
@@ -934,8 +949,76 @@ namespace lua_tinker
 	// class helper
 	int meta_get(lua_State *L);
 	int meta_set(lua_State *L);
-	void push_meta(lua_State *L, const char* name);
+	//void push_meta(lua_State *L, const char* name);
+    // class info
+    class class_info
+    {
+    public:
+        class_info()
+        {
+            m_ref = LUA_NOREF;
+        }
+    public:
+        void setref(int ref)
+        {
+            m_ref = ref;
+        }
 
+        int ref() const
+        {
+            return m_ref;
+        }
+
+    private:
+        int m_ref;
+    };
+
+    // registry for class info, used only internally
+    typedef map<string, class_info*> classinfomap;
+    class class_info_registry
+    {
+    public:
+        static void regclassinfo(const type_info& type, int ref)
+        {
+            class_info* info = new class_info();
+            info->setref(ref);
+
+            m_classes[type.name()] = info;
+        }
+
+        static const class_info* getclassinfo(const type_info& type)
+        {
+            classinfomap::const_iterator iter = m_classes.find(type.name());
+            if (iter == m_classes.end())
+            {
+                return NULL;
+            }
+            else
+            {
+                return iter->second;
+            }
+        }
+
+    private:
+        static classinfomap m_classes;
+    };
+
+    // class metatable helper
+    template<typename T>
+    void push_meta(lua_State *L)
+    {
+        const class_info* info = class_info_registry::getclassinfo(typeid(T));
+        if (NULL == info)
+        {
+            lua_pushnil(L);
+        }
+        else
+        {
+            lua_pushinteger(L, info->ref());
+            lua_gettable(L, LUA_REGISTRYINDEX);
+        }
+    }
+   
 #if 0
 	// class init
 	template<typename T>
@@ -966,6 +1049,7 @@ namespace lua_tinker
 	}
 #endif
 
+#if 0
 	// class init
 	template<typename T>
 	void class_add(lua_State* L, const char* name) 
@@ -992,16 +1076,48 @@ namespace lua_tinker
 
 		lua_setglobal(L, name);
 	}
+#endif
+
+	// class init
+	template<typename T>
+	void class_add(lua_State* L, const char* name) 
+	{ 
+		lua_newtable(L);
+
+		lua_pushstring(L, "__name");
+		lua_pushstring(L, name);
+		lua_rawset(L, -3);
+
+		lua_pushstring(L, "__index");
+		lua_pushcclosure(L, meta_get, 0);
+		lua_rawset(L, -3);
+
+		lua_pushstring(L, "__newindex");
+		lua_pushcclosure(L, meta_set, 0);
+		lua_rawset(L, -3);
+
+		lua_pushstring(L, "__gc");
+		lua_pushcclosure(L, destroyer<T>, 0);
+		lua_rawset(L, -3);
+
+        lua_pushvalue(L, -1); // copy
+        int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+        class_info_registry::regclassinfo(typeid(T), ref);
+
+		lua_setfield(L, -2, name);
+	}
 
 	// Tinker Class Inheritence
 	template<typename T, typename P>
 	void class_inh(lua_State* L)
 	{
-		push_meta(L, class_name<T>::name());
+		//push_meta(L, class_name<T>::name());
+	    push_meta<T>(L);
 		if(lua_istable(L, -1))
 		{
 			lua_pushstring(L, "__parent");
-			push_meta(L, class_name<P>::name());
+			//push_meta(L, class_name<P>::name());
+	        push_meta<P>(L);
 			lua_rawset(L, -3);
 		}
 		lua_pop(L, 1);
@@ -1011,7 +1127,8 @@ namespace lua_tinker
 	template<typename T, typename F>
 	void class_con(lua_State* L,F func)
 	{
-		push_meta(L, class_name<T>::name());
+		//push_meta(L, class_name<T>::name());
+	    push_meta<T>(L);
 		if(lua_istable(L, -1))
 		{
 			lua_newtable(L);
@@ -1027,7 +1144,8 @@ namespace lua_tinker
 	template<typename T, typename F>
 	void class_def(lua_State* L, const char* name, F func) 
 	{ 
-		push_meta(L, class_name<T>::name());
+		//push_meta(L, class_name<T>::name());
+	    push_meta<T>(L);
 		if(lua_istable(L, -1))
 		{
 			lua_pushstring(L, name);
@@ -1042,7 +1160,8 @@ namespace lua_tinker
 	template<typename T, typename BASE, typename VAR>
 	void class_mem(lua_State* L, const char* name, VAR BASE::*val) 
 	{ 
-		push_meta(L, class_name<T>::name());
+		//push_meta(L, class_name<T>::name());
+	    push_meta<T>(L);
 		if(lua_istable(L, -1))
 		{
 			lua_pushstring(L, name);
@@ -1066,6 +1185,7 @@ namespace lua_tinker
 	};
 #endif
 
+#if 0
 	template<typename T>
 	struct class_name
 	{
@@ -1077,6 +1197,7 @@ namespace lua_tinker
 			return temp;
 		}
 	};
+#endif
 
 	// Table Object on Stack
 	struct table_obj
@@ -1145,6 +1266,9 @@ namespace lua_tinker
 
 		table_obj*		m_obj;
 	};
+
+    void beginmodule(lua_State* L, const string modname = "");
+    void endmodule(lua_State* L);
 
 } // namespace lua_tinker
 

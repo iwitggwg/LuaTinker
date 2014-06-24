@@ -7,6 +7,7 @@
 // please check Licence.txt file for licence and legal issues. 
 
 #include <iostream>
+#include <assert.h>
 
 extern "C" 
 {
@@ -17,6 +18,7 @@ extern "C"
 
 #include "lua_tinker.h"
 
+lua_tinker::classinfomap lua_tinker::class_info_registry::m_classes;
 
 /*---------------------------------------------------------------------------*/ 
 /* init                                                                      */ 
@@ -807,11 +809,13 @@ void lua_tinker::push_meta(lua_State *L, const char* name)
 }
 #endif
 
+#if 0
 /*---------------------------------------------------------------------------*/ 
 void lua_tinker::push_meta(lua_State *L, const char* name)
 {
 	lua_getglobal(L, name);
 }
+#endif
 
 /*---------------------------------------------------------------------------*/ 
 /* table object on stack                                                     */ 
@@ -954,6 +958,43 @@ lua_tinker::table::table(const table& input)
 lua_tinker::table::~table()
 {
 	m_obj->dec_ref();
+}
+
+/*---------------------------------------------------------------------------*/ 
+
+/*---------------------------------------------------------------------------*/ 
+
+void lua_tinker::beginmodule(lua_State* L, const string modname)
+{
+    if (modname.empty())
+    {
+        lua_getglobal(L, "_G");
+    }
+    else
+    {
+        // make sure a table object is on the top of the stack
+        assert(lua_gettop(L) > 0);
+        assert(lua_istable(L, -1));
+
+        lua_pushstring(L, modname.c_str());
+        lua_rawget(L, -2);
+        if (!lua_istable(L, -1)) // check if module already exists, if not, create it
+        {
+            lua_pop(L, 1);
+
+            lua_newtable(L);
+            lua_pushstring(L, modname.c_str());
+            lua_pushvalue(L, -2);
+            lua_rawset(L, -4);
+
+            // the new created table is on the top of the stack
+        }
+    }
+}
+
+void lua_tinker::endmodule(lua_State* L)
+{
+    lua_pop(L, 1);
 }
 
 /*---------------------------------------------------------------------------*/ 
